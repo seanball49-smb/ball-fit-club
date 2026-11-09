@@ -16,6 +16,20 @@ for (const f of files) {
   fs.cpSync(path.join(root, f), path.join(out, f), { recursive: true });
 }
 
+// Stamp every deploy with a unique version so phones always load the newest
+// files instead of an old copy they saved earlier.
+const v = (process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString(36)).slice(0, 10);
+const stamp = (file, pairs) => {
+  const p = path.join(out, file);
+  let s = fs.readFileSync(p, 'utf8');
+  for (const [from, to] of pairs) s = s.split(from).join(to);
+  fs.writeFileSync(p, s);
+};
+stamp('index.html', [['/app.js"', `/app.js?v=${v}"`], ['/styles.css"', `/styles.css?v=${v}"`]]);
+stamp('app.js', [["from './config.js'", `from './config.js?v=${v}'`]]);
+const appCheck = fs.readFileSync(path.join(out, 'app.js'), 'utf8');
+console.log(`App version ${v} — uses ${appCheck.includes('fit_profiles') ? 'fit_ tables (new)' : 'OLD table names — upload the new app.js to GitHub'}.`);
+
 const env = process.env;
 // Keep only https://<project>.supabase.co, dropping anything after it
 // (like /rest/v1/ or a trailing slash), which Supabase rejects.
