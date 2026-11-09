@@ -75,24 +75,28 @@ const toRow = {
   days: (id, d) => ({ id, who: d.who, date: d.date, foods: d.foods, water: d.water, weight: d.weight, done: d.done, workouts: d.workouts, quests: d.quests, extra: d.extra, cheers: d.cheers, updated_at: new Date().toISOString() })
 };
 
+// Database table names. Prefixed so they never clash with other tables in the same Supabase project.
+const TBL = { profiles: 'fit_profiles', plans: 'fit_plans', days: 'fit_days' };
+const FROM_DB = Object.fromEntries(Object.entries(TBL).map(([k, v]) => [v, k]));
+
 const queues = {};
 function put(table, id, data) {
   S[table] = { ...S[table], [id]: data };
   render();
   const key = table + '/' + id;
   queues[key] = (queues[key] || Promise.resolve()).then(async () => {
-    const { error } = await sb.from(table).upsert(toRow[table](id, data));
+    const { error } = await sb.from(TBL[table]).upsert(toRow[table](id, data));
     if (error) { console.error(error); toast(`Couldn’t save. ${dbReason(error)}`, 8000); resync(); }
   });
 }
 // Turn a Supabase error into a reason a person can act on.
 function dbReason(e) {
   const m = `${e.code || ''} ${e.message || ''}`;
-  if (/42501|row-level security|permission denied/i.test(m)) return 'The database refused the change. Run fix-permissions.sql in Supabase.';
-  if (/PGRST205|schema cache|does not exist/i.test(m)) return 'A database table is missing. Run schema.sql in Supabase.';
-  if (/23514|check constraint/i.test(m)) return 'One of the values isn’t allowed. Check the form and try again.';
-  if (/fetch|network/i.test(m)) return 'No connection. Check your internet and try again.';
-  return `Supabase said: ${e.message || e.code || 'unknown error'}`;
+  let hint = '';
+  if (/42501|row-level security|permission denied/i.test(m)) hint = 'Run schema.sql in Supabase again. ';
+  else if (/PGRST20[45]|42P01|42703|schema cache|does not exist/i.test(m)) hint = 'The database setup is out of date. Run the latest schema.sql in Supabase. ';
+  else if (/fetch|network/i.test(m)) return 'No connection. Check your internet and try again.';
+  return `${hint}(${e.message || e.code || 'unknown error'})`;
 }
 // After a failed save, reload from the database so the screen shows what's really stored.
 async function resync() { try { await loadAll(); } catch {} render(); }
@@ -100,7 +104,7 @@ function remove(table, id) {
   const n = { ...S[table] }; delete n[id]; S[table] = n; render();
   const key = table + '/' + id;
   queues[key] = (queues[key] || Promise.resolve()).then(async () => {
-    const { error } = await sb.from(table).delete().eq('id', id);
+    const { error } = await sb.from(TBL[table]).delete().eq('id', id);
     if (error) { console.error(error); toast(`Couldn’t delete. ${dbReason(error)}`, 8000); resync(); }
   });
 }
@@ -108,9 +112,9 @@ function remove(table, id) {
 async function loadAll() {
   const since = addDays(today(), -400);
   const [p, pl, d] = await Promise.all([
-    sb.from('profiles').select('*'),
-    sb.from('plans').select('*'),
-    sb.from('days').select('*').gte('date', since).order('date', { ascending: false }).limit(2000)
+    sb.from(TBL.profiles).select('*'),
+    sb.from(TBL.plans).select('*'),
+    sb.from(TBL.days).select('*').gte('date', since).order('date', { ascending: false }).limit(2000)
   ]);
   const err = p.error || pl.error || d.error;
   if (err) throw err;
@@ -134,8 +138,8 @@ async function init() {
   render();
   sb.channel('fitclub')
     .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
-      const t = payload.table;
-      if (!fromRow[t]) return;
+      const t = FROM_DB[payload.table];
+      if (!t) return;
       if (payload.eventType === 'DELETE') {
         const id = payload.old && payload.old.id; if (!id) return;
         const n = { ...S[t] }; delete n[id]; S[t] = n;
