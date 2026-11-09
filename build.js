@@ -17,7 +17,13 @@ for (const f of files) {
 }
 
 const env = process.env;
-const url = (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+// Keep only https://<project>.supabase.co, dropping anything after it
+// (like /rest/v1/ or a trailing slash), which Supabase rejects.
+let url = (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '').trim().replace(/^["']|["']$/g, '');
+if (url) {
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  try { url = new URL(url).origin; } catch { console.warn('⚠️  SUPABASE_URL does not look like a web address: ' + url); }
+}
 const key = (env.SUPABASE_ANON_KEY || env.SUPABASE_PUBLISHABLE_KEY ||
              env.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '').trim();
 
