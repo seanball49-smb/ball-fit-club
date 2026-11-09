@@ -82,15 +82,26 @@ function put(table, id, data) {
   const key = table + '/' + id;
   queues[key] = (queues[key] || Promise.resolve()).then(async () => {
     const { error } = await sb.from(table).upsert(toRow[table](id, data));
-    if (error) { console.error(error); toast('Couldn’t save that. Check your connection and try again.'); }
+    if (error) { console.error(error); toast(`Couldn’t save. ${dbReason(error)}`, 8000); resync(); }
   });
 }
+// Turn a Supabase error into a reason a person can act on.
+function dbReason(e) {
+  const m = `${e.code || ''} ${e.message || ''}`;
+  if (/42501|row-level security|permission denied/i.test(m)) return 'The database refused the change. Run fix-permissions.sql in Supabase.';
+  if (/PGRST205|schema cache|does not exist/i.test(m)) return 'A database table is missing. Run schema.sql in Supabase.';
+  if (/23514|check constraint/i.test(m)) return 'One of the values isn’t allowed. Check the form and try again.';
+  if (/fetch|network/i.test(m)) return 'No connection. Check your internet and try again.';
+  return `Supabase said: ${e.message || e.code || 'unknown error'}`;
+}
+// After a failed save, reload from the database so the screen shows what's really stored.
+async function resync() { try { await loadAll(); } catch {} render(); }
 function remove(table, id) {
   const n = { ...S[table] }; delete n[id]; S[table] = n; render();
   const key = table + '/' + id;
   queues[key] = (queues[key] || Promise.resolve()).then(async () => {
     const { error } = await sb.from(table).delete().eq('id', id);
-    if (error) { console.error(error); toast('Couldn’t delete that. Try again.'); }
+    if (error) { console.error(error); toast(`Couldn’t delete. ${dbReason(error)}`, 8000); resync(); }
   });
 }
 
@@ -502,10 +513,10 @@ function closeSheet() { sheetKind = null; S.edit = null; for (const k in draft) 
 
 /* ---------- feedback ---------- */
 let toastTimer;
-function toast(msg) {
+function toast(msg, ms = 2600) {
   document.querySelectorAll('.toast').forEach(t => t.remove());
   const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
-  document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 2600);
+  document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), ms);
 }
 function confetti() {
   if (reduced) return;
