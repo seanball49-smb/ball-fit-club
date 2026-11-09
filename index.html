@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ball Fit Club</title>
+  <meta name="description" content="Workout, food and weight tracking for two.">
+  <meta name="theme-color" content="#F4F5F8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E1117" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Fit Club">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="view" class="view"></div>
+  <div id="sheet"></div>
+
+  <nav class="tabbar" id="tabs" hidden aria-label="Main">
+    <div class="tabbar-in">
+      <a href="#today" data-tab="today">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+        <span>Today</span>
+      </a>
+      <a href="#workouts" data-tab="workouts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11"/></svg>
+        <span>Workouts</span>
+      </a>
+      <a href="#food" data-tab="food">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10M17 21V3c-2 1-3 4-3 8h3"/></svg>
+        <span>Nutrition</span>
+      </a>
+      <a href="#progress" data-tab="progress">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M6 16l4-5 3 3 5-7"/></svg>
+        <span>Progress</span>
+      </a>
+    </div>
+  </nav>
+
+  <canvas id="fx" hidden></canvas>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
