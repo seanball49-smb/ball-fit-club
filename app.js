@@ -33,6 +33,7 @@ const I = {
   x: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 3 6.5 7 .8-5.2 4.8 1.4 7L12 17.6 5.8 21l1.4-7L2 9.3l7-.8z"/></svg>',
   hand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.4l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   dice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>',
   cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/><path d="m3 3 18 18"/></svg>',
@@ -180,7 +181,8 @@ function weekStart() { const d = parse(today()); d.setDate(d.getDate() - ((d.get
 const weekWorkouts = w => { const ws = weekStart(); return daysOf(w).filter(d => d.date >= ws).reduce((n, d) => n + d.workouts.length + d.extra.length, 0); };
 const weighins = w => daysOf(w).filter(d => d.weight).map(d => ({ date: d.date, w: d.weight })).sort((a, b) => (a.date < b.date ? -1 : 1));
 function plansFor(w, dateStr) { const wd = parse(dateStr).getDay(); return Object.entries(S.plans).filter(([, p]) => (p.for === w || p.for === 'both') && (p.day === 'any' || +p.day === wd)).sort((a, b) => a[1].title.localeCompare(b[1].title)); }
-const totalsOf = d => d.foods.reduce((t, f) => ({ cal: t.cal + (+f.cal || 0), p: t.p + (+f.p || 0) }), { cal: 0, p: 0 });
+const totalsOf = d => d.foods.reduce((t, f) => ({ cal: t.cal + (+f.cal || 0), p: t.p + (+f.p || 0), c: t.c + (+f.c || 0), f: t.f + (+f.f || 0) }), { cal: 0, p: 0, c: 0, f: 0 });
+const foodMeta = f => [`${f.cal} kcal`, `${f.p || 0}g P`, f.c != null ? `${f.c}g C` : '', f.f != null ? `${f.f}g F` : ''].filter(Boolean).join(' · ');
 function progressOf(w) {
   const pr = P(w), ws = weighins(w);
   const start = pr.start || (ws[0] && ws[0].w) || null;
@@ -333,13 +335,13 @@ function workoutsView() {
   const f = S.filter, nm = w => esc(P(w).name);
   const all = Object.entries(S.plans).filter(([, p]) => f === 'all' || p.for === f)
     .sort((x, y) => { const dx = x[1].day === 'any' ? 7 : +x[1].day, dy = y[1].day === 'any' ? 7 : +y[1].day; return dx - dy || x[1].title.localeCompare(y[1].title); });
-  return `<div class="section-head"><h2>Workouts</h2><button class="btn sm" data-act="newplan">${I.plus} New plan</button></div>
+  return `<div class="section-head"><h2>Workouts</h2><div class="row" style="gap:8px"><button class="btn secondary sm" data-act="copyweek">${I.copy} Copy week</button><button class="btn sm" data-act="newplan">${I.plus} New</button></div></div>
   <p class="muted" style="margin-top:-6px">Plans appear on each person’s Today screen on the day you choose.</p>
   <div class="seg">${[['all', 'All'], ['a', nm('a')], ['b', nm('b')], ['both', 'Together']].map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="filter" data-f="${k}">${l}</button>`).join('')}</div>
   ${all.length ? all.map(([id, p]) => `<article class="card plan-card">
     <div class="card-head"><div class="grow"><div class="row" style="gap:6px;flex-wrap:wrap"><span class="tag ${p.for}">${p.for === 'both' ? 'Together' : nm(p.for)}</span><span class="tag day">${p.day === 'any' ? 'Any day' : WD_LONG[+p.day]}</span></div>
       <h3 style="font-size:17px;font-weight:800;margin-top:8px">${esc(p.title)}</h3></div>
-      <button class="btn secondary sm" data-act="editplan" data-id="${esc(id)}">Edit</button></div>
+      <div class="row" style="gap:6px;align-self:flex-start"><button class="btn secondary sm" data-act="copyplan" data-id="${esc(id)}" aria-label="Copy ${esc(p.title)}">${I.copy}</button><button class="btn secondary sm" data-act="editplan" data-id="${esc(id)}">Edit</button></div></div>
     <div class="ex-list">${(p.ex || []).map(e => `<div class="ex-line"><span>${esc(e.n)}</span><span class="muted num" style="font-weight:600;white-space:nowrap">${esc(exLine(e))}</span></div>`).join('')}</div>
     ${p.notes ? `<p class="muted" style="font-size:13.5px">${esc(p.notes)}</p>` : ''}
   </article>`).join('') : `<div class="card"><p class="empty">No plans here yet. Tap <b>New plan</b> to write your first workout.</p></div>`}`;
@@ -348,7 +350,8 @@ function planSheet() {
   const e = S.edit, nm = w => esc(P(w).name);
   return `<div class="scrim" data-act="closesheet"><form class="sheet" data-form="plan" novalidate>
     <div class="grab"></div>
-    <div class="card-head"><h2>${e.id ? 'Edit workout' : 'New workout'}</h2><button type="button" class="x" data-act="closesheet" aria-label="Close">${I.x}</button></div>
+    <div class="card-head"><h2>${e.id ? 'Edit workout' : e.copy ? 'Copy workout' : 'New workout'}</h2><button type="button" class="x" data-act="closesheet" aria-label="Close">${I.x}</button></div>
+    ${e.copy ? '<p class="hint" style="margin-top:-6px">Pick who this copy is for, adjust the weights, then save. The original stays as it is.</p>' : ''}
     <div class="field"><label for="pl-title">Workout name</label><input id="pl-title" value="${esc(e.title)}" placeholder="e.g. Push Day, Booty Burn" autocomplete="off"></div>
     <div class="field"><label>Who is it for?</label><div class="seg">${[['a', nm('a')], ['b', nm('b')], ['both', 'Both of us']].map(([k, l]) => `<button type="button" class="${e.for === k ? 'on' : ''}" data-act="pfor" data-v="${k}">${l}</button>`).join('')}</div></div>
     <div class="field"><label for="pl-day">Day</label><select id="pl-day">${[['any', 'Any day'], ...WD_LONG.map((w, i) => [String(i), w])].map(([v, l]) => `<option value="${v}" ${String(e.day) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -381,10 +384,12 @@ function foodView() {
   <div class="datebar"><button class="iconbtn" data-act="fd" data-n="-1" aria-label="Previous day">${I.back}</button><b>${isToday ? 'Today' : pretty(S.foodDate)}</b><button class="iconbtn" data-act="fd" data-n="1" ${isToday ? 'disabled' : ''} aria-label="Next day">${I.fwd}</button></div>
   <section class="card">
     ${macro('Calories', t.cal, p.cal, '', 'fill-me')}${macro('Protein', t.p, p.protein, 'g', 'fill-gold')}
+    <div class="pills"><span class="pill num">Carbs ${Math.round(t.c)}g</span><span class="pill num">Fat ${Math.round(t.f)}g</span></div>
     <p class="hint">${p.goal === 'gain'
       ? (left > 0 ? `${left.toLocaleString()} calories to go. For a bulk, hitting this number matters most.` : 'Calorie goal hit. Going over a little is fine on a bulk.')
       : (left >= 0 ? `${left.toLocaleString()} calories left. Keep protein high to hold on to muscle.` : `${Math.abs(left).toLocaleString()} over today. One day won’t undo your progress.`)}</p>
   </section>
+  ${foodSearchCard()}
   <section class="card"><div class="card-head"><h3>Quick add</h3><span class="hint">Typical estimates</span></div>
     <div class="presets">${(PRESETS[p.goal] || PRESETS.gain).map((x, i) => `<button class="preset" data-act="preset" data-i="${i}"><b>${esc(x[0])}</b><span class="num">${x[1]} kcal · ${x[2]}g protein</span></button>`).join('')}</div>
   </section>
@@ -392,11 +397,12 @@ function foodView() {
     <form data-form="food" style="display:flex;flex-direction:column;gap:10px" novalidate>
       <div class="field"><label for="fd-n">Food</label><input id="fd-n" placeholder="e.g. Chipotle bowl" autocomplete="off"></div>
       <div class="grid2"><div class="field"><label for="fd-c">Calories</label><input id="fd-c" type="number" inputmode="numeric" placeholder="750"></div><div class="field"><label for="fd-p">Protein (g)</label><input id="fd-p" type="number" inputmode="numeric" placeholder="40"></div></div>
+      <div class="grid2"><div class="field"><label for="fd-carb">Carbs (g) <span class="muted" style="font-weight:500">optional</span></label><input id="fd-carb" type="number" inputmode="numeric" placeholder="80"></div><div class="field"><label for="fd-fat">Fat (g) <span class="muted" style="font-weight:500">optional</span></label><input id="fd-fat" type="number" inputmode="numeric" placeholder="25"></div></div>
       <button class="btn">Add food</button>
     </form>
   </section>
   <section class="card"><div class="card-head"><h3>${isToday ? 'Logged today' : 'Logged'}</h3><span class="muted num" style="font-size:13px;font-weight:700">${d.foods.length} items</span></div>
-    ${d.foods.length ? `<div class="list">${d.foods.map((f, i) => `<div class="li"><span class="grow">${esc(f.n)}</span><span class="meta num">${f.cal} kcal · ${f.p || 0}g</span><button class="x" data-act="rmfood" data-i="${i}" aria-label="Remove ${esc(f.n)}">${I.x}</button></div>`).join('')}</div>` : '<p class="empty">Nothing logged yet. Tap a quick add to start.</p>'}
+    ${d.foods.length ? `<div class="list">${d.foods.map((f, i) => `<div class="li"><span class="grow">${esc(f.n)}</span><span class="meta num">${esc(foodMeta(f))}</span><button class="x" data-act="rmfood" data-i="${i}" aria-label="Remove ${esc(f.n)}">${I.x}</button></div>`).join('')}</div>` : '<p class="empty">Nothing logged yet. Search for a food or tap a quick add.</p>'}
   </section>`;
 }
 
@@ -505,15 +511,101 @@ function settingsSheet() {
   </form></div>`;
 }
 
+function sortedPlans(from) {
+  return Object.entries(S.plans).filter(([, p]) => p.for === from)
+    .sort((x, y) => { const dx = x[1].day === 'any' ? 7 : +x[1].day, dy = y[1].day === 'any' ? 7 : +y[1].day; return dx - dy || x[1].title.localeCompare(y[1].title); });
+}
+function startCopy(from) {
+  const to = from === 'both' ? { a: true, b: true } : { a: from === 'b', b: from === 'a' };
+  S.copy = { from, to, sel: sortedPlans(from).map(([id]) => id), removeOrig: from === 'both' };
+}
+function copyWeekSheet() {
+  const c = S.copy, nm = w => esc(P(w).name), list = sortedPlans(c.from);
+  const dests = ['a', 'b'].filter(w => w !== c.from && c.to[w]);
+  const n = c.sel.length * dests.length;
+  return `<div class="scrim" data-act="closesheet"><form class="sheet" data-form="copyweek" novalidate>
+    <div class="grab"></div>
+    <div class="card-head"><h2>Copy workouts</h2><button type="button" class="x" data-act="closesheet" aria-label="Close">${I.x}</button></div>
+    <p class="hint" style="margin-top:-6px">Each copy keeps its day and exercises. Afterward, tap <b>Edit</b> on a copy to set that person’s weights.</p>
+    <div class="field"><label>Copy from</label><div class="seg">${[['both', 'Together'], ['a', nm('a')], ['b', nm('b')]].map(([k, l]) => `<button type="button" class="${c.from === k ? 'on' : ''}" data-act="cpfrom" data-v="${k}">${l}</button>`).join('')}</div></div>
+    <div class="field"><div class="row" style="justify-content:space-between"><label>Workouts</label>${list.length ? `<button type="button" class="link" data-act="cpall">${c.sel.length === list.length ? 'Select none' : 'Select all'}</button>` : ''}</div>
+      ${list.length ? `<div style="display:flex;flex-direction:column;gap:6px">${list.map(([id, p]) => `<button type="button" class="ex ${c.sel.includes(id) ? 'on' : ''}" data-act="cpsel" data-id="${esc(id)}"><span class="box"></span><span class="en" style="text-decoration:none;color:var(--ink)">${esc(p.title)}</span><span class="ed">${p.day === 'any' ? 'Any day' : WD[+p.day]}</span></button>`).join('')}</div>`
+        : '<p class="empty">No workouts here yet.</p>'}</div>
+    <div class="field"><label>Copy to</label><div class="row" style="gap:8px;flex-wrap:wrap">${['a', 'b'].filter(w => w !== c.from).map(w => `<button type="button" class="ex ${c.to[w] ? 'on' : ''}" data-act="cpto" data-w="${w}" style="width:auto;flex:1"><span class="box"></span><span class="en" style="text-decoration:none;color:var(--ink)">${nm(w)}</span></button>`).join('')}</div></div>
+    ${c.from === 'both' ? `<button type="button" class="ex ${c.removeOrig ? 'on' : ''}" data-act="cprm"><span class="box"></span><span class="en" style="text-decoration:none;color:var(--ink)">Remove the Together versions after copying<br><span class="hint" style="font-weight:500">Recommended, so each workout shows only once on your Today screens.</span></span></button>` : ''}
+    <button class="btn block" ${n ? '' : 'disabled'}>${n ? `Copy ${n} workout${n > 1 ? 's' : ''}` : 'Choose workouts and people'}</button>
+  </form></div>`;
+}
+
+/* ---------- food search ---------- */
+const FOOD = { q: '', loading: false, results: null, error: '', notes: [], pick: null };
+async function searchFood(q) {
+  FOOD.q = q; FOOD.loading = true; FOOD.error = ''; FOOD.results = null; FOOD.notes = []; render();
+  try {
+    const r = await fetch('/api/food?q=' + encodeURIComponent(q));
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || (r.status === 404 ? 'Food search isn’t set up yet. Upload the api folder to GitHub.' : `Search failed (${r.status}).`));
+    FOOD.results = j.results || []; FOOD.notes = j.notes || [];
+  } catch (e) {
+    FOOD.error = e && e.message && !/Failed to fetch|NetworkError|Load failed/i.test(e.message) ? e.message : 'No connection. Check your internet and try again.';
+  }
+  FOOD.loading = false; render();
+}
+const perServing = r => {
+  const g = r.serving ? r.serving.grams : 100, k = g / 100, v = x => (x == null ? null : Math.round(x * k));
+  return { cal: v(r.per100.cal), p: v(r.per100.p), c: v(r.per100.c), f: v(r.per100.f), label: r.serving ? r.serving.label : '100 g' };
+};
+function foodSearchCard() {
+  const res = FOOD.results;
+  return `<section class="card"><div class="card-head"><h3>Search foods</h3><span class="hint">USDA & Open Food Facts</span></div>
+    <form class="row" data-form="foodsearch" novalidate><input id="fs-q" type="search" placeholder="e.g. chicken thigh, Chobani yogurt" value="${esc(FOOD.q)}" autocomplete="off" enterkeyhint="search" aria-label="Search foods"><button class="btn" ${FOOD.loading ? 'disabled' : ''}>${FOOD.loading ? 'Searching…' : 'Search'}</button></form>
+    ${FOOD.error ? `<p class="notice warn">${esc(FOOD.error)}</p>` : ''}
+    ${res ? (res.length ? `<div class="results">${res.map((r, i) => { const s = perServing(r); return `<button class="result" data-act="pickfood" data-i="${i}">
+        <span class="grow"><b>${esc(r.name)}</b><span class="src">${r.brand ? esc(r.brand) + ' · ' : ''}${esc(r.source)}</span></span>
+        <span class="kc num"><b>${s.cal ?? '–'}</b><span>kcal</span></span>
+        <span class="mac num">${s.p ?? '–'}P · ${s.c ?? '–'}C · ${s.f ?? '–'}F<br><span class="muted">per ${esc(s.label)}</span></span></button>`; }).join('')}</div>`
+      : `<p class="empty">No matches for “${esc(FOOD.q)}”. Try fewer or simpler words, or add it yourself below.</p>`) : ''}
+    ${res && FOOD.notes.length ? `<p class="hint">${FOOD.notes.map(esc).join(' ')}</p>` : ''}
+    ${res && res.length ? '<p class="hint">Database values are estimates. Check the package label when you have it.</p>' : ''}
+  </section>`;
+}
+function foodPickSheet() {
+  const r = FOOD.pick;
+  const opts = [...(r.serving ? [['serving', 'servings']] : []), ['g', 'grams'], ['oz', 'ounces']];
+  const unit = r.serving ? 'serving' : 'g';
+  return `<div class="scrim" data-act="closesheet"><form class="sheet" data-form="foodpick" novalidate>
+    <div class="grab"></div>
+    <div class="card-head"><div class="grow"><h2 style="font-size:20px">${esc(r.name)}</h2><p class="hint">${r.brand ? esc(r.brand) + ' · ' : ''}${esc(r.source)}${r.serving ? ` · 1 serving = ${esc(r.serving.label)}` : ''}</p></div><button type="button" class="x" data-act="closesheet" aria-label="Close">${I.x}</button></div>
+    <div class="grid2"><div class="field"><label for="fp-qty">Amount</label><input id="fp-qty" type="number" inputmode="decimal" step="any" min="0" value="${unit === 'serving' ? 1 : 100}"></div>
+      <div class="field"><label for="fp-unit">Unit</label><select id="fp-unit">${opts.map(([v, l]) => `<option value="${v}" ${v === unit ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div></div>
+    <div class="stats four" id="fp-preview" aria-live="polite"></div>
+    <button class="btn block">Add to ${S.foodDate === today() ? 'today' : pretty(S.foodDate)}</button>
+  </form></div>`;
+}
+function pickAmounts() {
+  const r = FOOD.pick; if (!r) return null;
+  const qty = parseFloat(document.getElementById('fp-qty')?.value) || 0;
+  const unit = document.getElementById('fp-unit')?.value || 'g';
+  const grams = unit === 'serving' ? qty * (r.serving ? r.serving.grams : 100) : unit === 'oz' ? qty * 28.35 : qty;
+  const k = grams / 100, v = x => (x == null ? null : Math.round(x * k));
+  const unitLabel = unit === 'serving' ? (qty === 1 ? 'serving' : 'servings') : unit;
+  return { qty, unit, grams, cal: v(r.per100.cal), p: v(r.per100.p), c: v(r.per100.c), f: v(r.per100.f), label: `${+qty.toFixed(2)} ${unitLabel}` };
+}
+function updatePickPreview() {
+  const el = document.getElementById('fp-preview'), a = pickAmounts(); if (!el || !a) return;
+  el.innerHTML = [['Calories', a.cal, ''], ['Protein', a.p, 'g'], ['Carbs', a.c, 'g'], ['Fat', a.f, 'g']].map(([l, v, u]) => `<div class="stat"><b class="num">${v ?? '–'}${v != null ? u : ''}</b><span>${l}</span></div>`).join('');
+}
+
 /* ---------- sheets ---------- */
 let sheetKind = null;
 function openSheet(kind) { sheetKind = kind; drawSheet(); }
 function drawSheet() {
   const el = document.getElementById('sheet');
-  el.innerHTML = sheetKind === 'plan' ? planSheet() : sheetKind === 'settings' ? settingsSheet() : '';
+  el.innerHTML = sheetKind === 'plan' ? planSheet() : sheetKind === 'settings' ? settingsSheet() : sheetKind === 'copyweek' ? copyWeekSheet() : sheetKind === 'foodpick' ? foodPickSheet() : '';
+  if (sheetKind === 'foodpick') updatePickPreview();
   document.body.style.overflow = sheetKind ? 'hidden' : '';
 }
-function closeSheet() { sheetKind = null; S.edit = null; for (const k in draft) delete draft[k]; drawSheet(); render(); }
+function closeSheet() { sheetKind = null; S.edit = null; S.copy = null; FOOD.pick = null; for (const k in draft) delete draft[k]; drawSheet(); render(); }
 
 /* ---------- feedback ---------- */
 let toastTimer;
@@ -600,6 +692,19 @@ document.addEventListener('click', e => {
     case 'askdel': readEditor(); S.edit.confirmDel = true; drawSheet(); break;
     case 'canceldel': readEditor(); S.edit.confirmDel = false; drawSheet(); break;
     case 'delplan': remove('plans', S.edit.id); toast('Workout deleted'); closeSheet(); break;
+    case 'copyplan': {
+      const p = S.plans[t.dataset.id]; if (!p) break;
+      S.edit = Object.assign(clone(p), { id: null, copy: true, for: p.for === 'both' ? me : other(p.for) });
+      if (!S.edit.ex.length) S.edit.ex = [{ n: '', s: '', r: '', w: '' }];
+      openSheet('plan'); break;
+    }
+    case 'copyweek': startCopy(S.filter === 'a' || S.filter === 'b' ? S.filter : 'both'); openSheet('copyweek'); break;
+    case 'cpfrom': startCopy(t.dataset.v); drawSheet(); break;
+    case 'cpsel': { const id = t.dataset.id, c = S.copy; c.sel = c.sel.includes(id) ? c.sel.filter(x => x !== id) : [...c.sel, id]; drawSheet(); break; }
+    case 'cpall': { const c = S.copy, all = sortedPlans(c.from).map(([id]) => id); c.sel = c.sel.length === all.length ? [] : all; drawSheet(); break; }
+    case 'cpto': S.copy.to[t.dataset.w] = !S.copy.to[t.dataset.w]; drawSheet(); break;
+    case 'cprm': S.copy.removeOrig = !S.copy.removeOrig; drawSheet(); break;
+    case 'pickfood': { const r = FOOD.results && FOOD.results[+t.dataset.i]; if (!r) break; FOOD.pick = r; openSheet('foodpick'); break; }
   }
 });
 
@@ -614,10 +719,43 @@ document.addEventListener('submit', e => {
     award(() => { const o = day(me, today()); o.weight = +v.toFixed(1); saveDay(o); }, 'Weigh-in saved · +10 XP');
   }
   if (kind === 'food') {
-    const n = document.getElementById('fd-n').value.trim(), c = +document.getElementById('fd-c').value, p = +document.getElementById('fd-p').value || 0;
-    if (!n || !(c >= 0) || document.getElementById('fd-c').value === '') { toast('Add a food name and its calories'); return; }
+    const g = id => document.getElementById(id).value.trim();
+    const n = g('fd-n'), c = +g('fd-c'), p = +g('fd-p') || 0;
+    if (!n || !(c >= 0) || g('fd-c') === '') { toast('Add a food name and its calories'); return; }
+    const item = { n, cal: Math.round(c), p: Math.round(p) };
+    if (g('fd-carb') !== '') item.c = Math.round(+g('fd-carb') || 0);
+    if (g('fd-fat') !== '') item.f = Math.round(+g('fd-fat') || 0);
     document.activeElement?.blur();
-    award(() => { const o = day(me, S.foodDate); o.foods = [...o.foods, { n, cal: Math.round(c), p: Math.round(p) }]; saveDay(o); }, `Added ${n} · +5 XP`);
+    award(() => { const o = day(me, S.foodDate); o.foods = [...o.foods, item]; saveDay(o); }, `Added ${n} · +5 XP`);
+  }
+  if (kind === 'foodsearch') {
+    const q = document.getElementById('fs-q').value.trim();
+    if (q.length < 2) { toast('Type a food to search for'); return; }
+    document.activeElement?.blur();
+    searchFood(q);
+  }
+  if (kind === 'foodpick') {
+    const a = pickAmounts(), r = FOOD.pick;
+    if (!a || !(a.qty > 0)) { toast('Enter how much you had'); return; }
+    const item = { n: `${r.name}${r.brand ? ' (' + r.brand + ')' : ''} · ${a.label}`, cal: a.cal || 0, p: a.p || 0 };
+    if (a.c != null) item.c = a.c;
+    if (a.f != null) item.f = a.f;
+    document.activeElement?.blur();
+    award(() => { const o = day(me, S.foodDate); o.foods = [...o.foods, item]; saveDay(o); }, `Added ${r.name} · +5 XP`);
+    closeSheet();
+  }
+  if (kind === 'copyweek') {
+    const c = S.copy, dests = ['a', 'b'].filter(w => w !== c.from && c.to[w]);
+    if (!c.sel.length || !dests.length) { toast('Choose at least one workout and one person'); return; }
+    let n = 0;
+    for (const id of c.sel) {
+      const p = S.plans[id]; if (!p) continue;
+      for (const w of dests) { put('plans', newId(), { title: p.title, for: w, day: p.day, ex: clone(p.ex), notes: p.notes || '' }); n++; }
+      if (c.removeOrig && c.from === 'both') remove('plans', id);
+    }
+    S.filter = dests.length === 1 ? dests[0] : 'all';
+    closeSheet();
+    toast(`Copied ${n} workout${n > 1 ? 's' : ''}. Tap Edit on each to set the weights.`, 4500);
   }
   if (kind === 'plan') {
     readEditor();
@@ -626,7 +764,7 @@ document.addEventListener('submit', e => {
     if (!ex.length) { toast('Add at least one exercise'); return; }
     const id = ed.id || newId();
     put('plans', id, { title: ed.title.trim(), for: ed.for, day: ed.day, ex, notes: (ed.notes || '').trim() });
-    toast(ed.id ? 'Workout updated' : 'Workout added');
+    toast(ed.id ? 'Workout updated' : ed.copy ? `Copy saved for ${ed.for === 'both' ? 'both of you' : P(ed.for).name}` : 'Workout added');
     closeSheet();
   }
   if (kind === 'setup' || kind === 'settings') {
@@ -638,5 +776,11 @@ document.addEventListener('submit', e => {
   }
 });
 
+document.addEventListener('input', e => { if (e.target.id === 'fp-qty') updatePickPreview(); });
+document.addEventListener('change', e => { if (e.target.id === 'fp-unit') {
+  const qty = document.getElementById('fp-qty'), u = e.target.value;
+  if (qty) qty.value = u === 'serving' ? 1 : u === 'oz' ? 4 : 100;
+  updatePickPreview();
+} });
 window.addEventListener('hashchange', render);
 init();
